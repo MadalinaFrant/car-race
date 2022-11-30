@@ -1,35 +1,38 @@
 #version 330
 
 // Input
-// TODO(student): Get vertex attributes from each location
+// Get vertex attributes from each location
 layout(location = 0) in vec3 v_position;
 layout(location = 1) in vec3 v_normal;
 layout(location = 2) in vec2 v_texture;
-layout(location = 3) in vec3 v_color;
+layout(location = 3) in vec2 v_color;
 
 // Uniform properties
 uniform mat4 Model;
 uniform mat4 View;
 uniform mat4 Projection;
-uniform float Time;
+uniform mat4 CarModel;
+uniform vec3 Color;
 
 // Output
-// TODO(student): Output values to fragment shader
-out vec3 frag_position;
-out vec3 frag_normal;
-out vec2 frag_texture;
-out vec3 frag_color;
+// Output values to fragment shader
+out vec3 color;
 
 void main()
 {
-    float time = abs(sin(Time) + cos(Time));
+    // Send output to fragment shader
+    color = Color;
 
-    // TODO(student): Send output to fragment shader
-    frag_position = v_position;
-    frag_normal = v_normal + time;
-    frag_texture = v_texture;
-    frag_color = v_color;
+    vec4 carPosition = Projection * View * CarModel * vec4(1.0);
 
-    // TODO(student): Compute gl_Position
-    gl_Position = Projection * View * Model * vec4(v_position + time, 1.0);
+    float scaleFactor = 0.02f;
+    float modif = pow(length(vec3(carPosition.x, carPosition.y, carPosition.z) - v_position), 2) 
+                * scaleFactor;
+
+    float posX = v_position.x;
+    float posY = v_position.y - modif;
+    float posZ = v_position.z;
+
+    // Compute gl_Position
+    gl_Position = Projection * View * Model * vec4(posX, posY, posZ, 1.0);
 }

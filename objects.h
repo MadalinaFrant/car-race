@@ -9,9 +9,9 @@
 namespace objects
 {
     // Creeaza pista
-    Mesh* CreateRaceTrack(const std::string &name, glm::vec3 color);
+    Mesh* CreateRaceTrack(const std::string &name);
 
     // Creeaza masina
-    Mesh* CreateCube(const std::string &name, glm::vec3 color);
+    Mesh* CreateCube(const std::string &name);
 
 }

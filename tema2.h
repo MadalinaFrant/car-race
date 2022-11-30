@@ -16,16 +16,16 @@ namespace m1
     {
         public:
 
-        struct ViewportArea
-        {
-            ViewportArea() : x(0), y(0), width(1), height(1) {}
-            ViewportArea(int x, int y, int width, int height)
-                : x(x), y(y), width(width), height(height) {}
-            int x;
-            int y;
-            int width;
-            int height;
-        };
+            struct ViewportArea
+            {
+                ViewportArea() : x(0), y(0), width(1), height(1) {}
+                ViewportArea(int x, int y, int width, int height)
+                    : x(x), y(y), width(width), height(height) {}
+                int x;
+                int y;
+                int width;
+                int height;
+            };
 
             Tema2();
             ~Tema2();
@@ -39,7 +39,7 @@ namespace m1
             void Update(float deltaTimeSeconds) override;
             void FrameEnd() override;
 
-            void RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix) override;
+            void RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color);
 
             void OnInputUpdate(float deltaTime, int mods) override;
             void OnKeyPress(int key, int mods) override;
@@ -56,12 +56,11 @@ namespace m1
         
             implemented::LabCamera *camera;
 
-            glm::vec3 carPosition;
+            float carLength;
+            glm::vec3 carScale;
 
-            glm::mat4 projectionMatrix, rotateMatrix, modelMatrix;
+            glm::mat4 projectionMatrix, rotateMatrix, modelMatrix, carMatrix;
 
             ViewportArea miniViewportArea;
-
-            float fov, left, right, bottom, top;
     };
 }
