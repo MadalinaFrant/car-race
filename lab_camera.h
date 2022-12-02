@@ -91,7 +91,7 @@ namespace implemented
                 // extract the vec3 vector and then normalize it
                 forward = glm::normalize(glm::vec3(newForward));
 
-                up = glm::cross(right, forward);
+                up = glm::normalize(glm::cross(right, forward));
             }
 
             void RotateFirstPerson_OY(float angle)
@@ -112,7 +112,7 @@ namespace implemented
                 // extract the vec3 vector and then normalize it
                 right = glm::normalize(glm::vec3(newRight));
 
-                up = glm::cross(right, forward);
+                up = glm::normalize(glm::cross(right, forward));
             }
 
             void RotateFirstPerson_OZ(float angle)
@@ -127,7 +127,7 @@ namespace implemented
                 // extract the vec3 vector and then normalize it
                 right = glm::normalize(glm::vec3(newRight));
 
-                up = glm::cross(right, forward);
+                up = glm::normalize(glm::cross(right, forward));
             }
 
             void RotateThirdPerson_OX(float angle)
