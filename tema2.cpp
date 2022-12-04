@@ -44,8 +44,8 @@ void Tema2::Init()
 
     trackScale = glm::vec3(5);
 
-    carLength = 0.8f;
-    carScale = glm::vec3(0.25f, 0.25f, 0.65f);
+    carLength = 1;
+    carScale = glm::vec3(0.3f, 0.4f, 0.5f);
 
     trunkLength = 0.2f;
     trunkScale = glm::vec3(1, 2, 1);
@@ -63,9 +63,11 @@ void Tema2::Init()
     plane->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "plane50.obj");
     AddMeshToList(plane);
 
-    objects::GenPoints(points, &extPoints, &intPoints);
+    objects::GenPoints(points, &extPoints, &intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
 
-    Mesh* racetrack = objects::CreateRaceTrack("racetrack", extPoints, intPoints);
+
+    Mesh* racetrack = objects::CreateRaceTrack("racetrack", 
+                                            extPoints, intPoints, &vertices, &indices);
     AddMeshToList(racetrack);
 
     Mesh* car = objects::CreateCube("car", glm::vec3(-carLength / 2, 0, 0), carLength);
@@ -144,6 +146,7 @@ void Tema2::RenderScene()
 
     {
         glm::vec3 carPosition = camera->GetTargetPosition();
+        carPosition.y = 0;
 
         modelMatrix = glm::mat4(1);
         modelMatrix *= transform3D::Translate(carPosition.x, carPosition.y, carPosition.z);
@@ -152,6 +155,10 @@ void Tema2::RenderScene()
         RenderMesh(meshes["car"], shaders["LabShader"], modelMatrix, glm::vec3(0.3f, 0.1f, 0.7f));
 
         carMatrix = modelMatrix;
+    }
+
+    {
+        RenderOtherCars();
     }
 
     //DrawCoordinateSystem(camera->GetViewMatrix(), projectionMatrix);
@@ -189,6 +196,51 @@ void Tema2::RenderTree(glm::vec3 spawnPoint)
 }
 
 
+void Tema2::RenderOtherCars()
+{
+    vector<glm::vec3> carPoints1, carPoints2;
+
+    objects::GenPoints(points, &carPoints1, &carPoints2, glm::vec3(0.2f), glm::vec3(0.1f));
+    
+    nextPoints.push_back(0);
+    nextPoints.push_back(0);
+
+    float K = 500;
+    carPoints.push_back(objects::GenMorePoints(carPoints1, K));
+    carPoints.push_back(objects::GenMorePoints(carPoints2, K));
+
+    for (int i = 0; i < 2; i++) {
+
+        int nextPoint = nextPoints[i];
+
+        glm::vec3 carPosition = carPoints[i][nextPoint] * trackScale;
+        carPosition.y = 0;
+
+        int currPoint = nextPoint;
+        nextPoint++;
+        nextPoints[i]++;
+        if (nextPoint == carPoints[i].size()) {
+            nextPoint = 0;
+            nextPoints[i] = 0;
+        }
+
+        float x1 = carPoints[i][currPoint].x * trackScale.x;
+        float z1 = carPoints[i][currPoint].z * trackScale.z;
+        float x2 = carPoints[i][nextPoint].x * trackScale.x;
+        float z2 = carPoints[i][nextPoint].z * trackScale.z;
+
+        float yRot = atan((x2 - x1) / (z2 - z1));
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(carPosition.x, carPosition.y, carPosition.z);
+        modelMatrix *= transform3D::RotateOY(yRot);
+        modelMatrix *= transform3D::Scale(carScale.x, carScale.y, carScale.z);
+        RenderMesh(meshes["car"], shaders["LabShader"], modelMatrix, glm::vec3(0, 1, 1));
+
+    }
+}
+
+
 void Tema2::RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color)
 {
     if (!mesh || !shader || !shader->program)
@@ -214,14 +266,34 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
     float cameraSpeed = 3.5f;
 
+    if (window->KeyHold(GLFW_KEY_SPACE)) { // accelerare
+        cameraSpeed *= 2;
+    }
+
+    // copie camera (pentru a afla urmatoarea miscare fara a o executa)
+    implemented::LabCamera* c = new implemented::LabCamera();
+    c->position = camera->position;
+    c->forward = camera->forward;
+    c->up = camera->up;
+    c->right = camera->right;
+
+
     if (window->KeyHold(GLFW_KEY_W)) {
         // Miscare in fata a camerei
-        camera->MoveForward(cameraSpeed * deltaTime);
+        c->MoveForward(cameraSpeed * deltaTime);
+
+        if (IsInsideRacetrack(c->GetTargetPosition())) {
+            camera->MoveForward(cameraSpeed * deltaTime);
+        }
     }
 
     if (window->KeyHold(GLFW_KEY_S)) {
         // Miscare in spate a camerei
-        camera->MoveForward(-cameraSpeed * deltaTime);
+        c->MoveForward(-cameraSpeed * deltaTime);
+
+        if (IsInsideRacetrack(c->GetTargetPosition())) {
+            camera->MoveForward(-cameraSpeed * deltaTime);
+        }
     }
 
     if (window->KeyHold(GLFW_KEY_A)) {
@@ -237,6 +309,34 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
         // Rotatie spre dreapta a camerei
         rotateMatrix *= transform3D::RotateOY(-cameraSpeed * deltaTime * 0.25f);
     }
+}
+
+
+bool Tema2::IsInsideRacetrack(glm::vec3 p)
+{
+    for (int i = 0; i < indices.size() - 2; i += 3) {
+        glm::vec3 a = vertices[indices[i]].position * trackScale;
+        glm::vec3 b = vertices[indices[i + 1]].position * trackScale;
+        glm::vec3 c = vertices[indices[i + 2]].position * trackScale;
+
+        if (IsInsideTriangle(p, a, b, c)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool Tema2::IsInsideTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c)
+{
+    return SameSide(p, a, b, c) && SameSide(p, b, a, c) && SameSide(p, c, a, b);
+}
+
+
+bool Tema2::SameSide(glm::vec3 p1, glm::vec3 p2, glm::vec3 a, glm::vec3 b)
+{
+    return glm::dot(glm::cross(b - a, p1 - a), glm::cross(b - a, p2 - a)) >= 0;
 }
 
 

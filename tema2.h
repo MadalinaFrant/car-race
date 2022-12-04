@@ -53,10 +53,20 @@ namespace m1
             void RenderScene();
             void RenderTree(glm::vec3 spawnPoint);
             void RenderTrees();
+            void RenderOtherCars();
+            bool IsInsideRacetrack(glm::vec3 p);
+            bool IsInsideTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c);
+            bool SameSide(glm::vec3 p1, glm::vec3 p2, glm::vec3 a, glm::vec3 b);
 
         protected:
 
+            vector<VertexFormat> vertices;
+            vector<unsigned int> indices;
+
             vector<glm::vec3> points, extPoints, intPoints;
+
+            vector<vector<glm::vec3>> carPoints;
+            vector<int> nextPoints;
         
             implemented::LabCamera *camera;
 
