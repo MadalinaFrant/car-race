@@ -16,7 +16,7 @@ Tema2::~Tema2()
 
 void Tema2::Init()
 {
-
+    /* Multimea punctelor ce definesc pista */
     points = 
     {
         glm::vec3( 5.05f, 0.01f,  0.29f), // A
@@ -42,10 +42,12 @@ void Tema2::Init()
     camera = new implemented::LabCamera();
     camera->Set(glm::vec3(0, 1, 2.5f), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
 
+    /* Se definesc dimensiunile obiectelor */
+
     trackScale = glm::vec3(5);
 
-    carLength = 0.8f;
-    carScale = glm::vec3(0.25f, 0.25f, 0.65f);
+    carLength = 1;
+    carScale = glm::vec3(0.3f, 0.4f, 0.5f);
 
     trunkLength = 0.2f;
     trunkScale = glm::vec3(1, 2, 1);
@@ -55,17 +57,50 @@ void Tema2::Init()
 
     rotateMatrix = glm::mat4(1);
     
+    /* Pozitionare estetica a camerei in raport cu masina */
     camera->MoveForward(7.5f);
     camera->RotateThirdPerson_OY(M_PI / 3);
     rotateMatrix *= transform3D::RotateOY(M_PI / 3);
+
+    nrOtherCars = 6; // numarul celorlalte masini
+
+    /* In nextPoints se salveaza indexul pozitiei curente a masinilor;
+    initial, acesta va fi 0 pentru toate masinile */
+    nextPoints = {0, 0, 0, 0, 0, 0};
+
+    speeds = {200, 500, 300, 700, 400, 600}; // vitezele celorlalte masini
+
+    // distantele celorlalte masini fata de pista
+    distances = {glm::vec3(0.2f), glm::vec3(0.0f), glm::vec3(0.4f), 
+                glm::vec3(0.1f), glm::vec3(0.3f), glm::vec3(0.2f)};
+
+    // culorile celorlalte masini
+    colors = {glm::vec3(0.5f, 0, 0.8f), glm::vec3(0.8f, 0, 0.5f), glm::vec3(0, 0.5f, 0.8f), 
+            glm::vec3(0, 0.8f, 0.5f), glm::vec3(0.8f, 0.8f, 0), glm::vec3(0.8f, 0.5f, 0)};
+
+    /* Se genereaza traseele masinilor inamice; in carPoints se salveaza multimea
+    punctelor ce definesc traseul masinilor */
+    for (int i = 0; i < nrOtherCars; i += 2) {
+
+        vector<glm::vec3> carPoints1, carPoints2;
+
+        objects::GenPoints(points, &carPoints1, &carPoints2, distances[i], distances[i + 1]);
+
+        carPoints.push_back(objects::GenMorePoints(carPoints1, speeds[i]));
+        carPoints.push_back(objects::GenMorePoints(carPoints2, speeds[i + 1]));
+    }
+
+    /* Se genereaza multimea punctelor exterioare si interioare ce definesc pista */
+    objects::GenPoints(points, &extPoints, &intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
+
+    /* Se definesc obiectele utilizate */
 
     Mesh* plane = new Mesh("plane");
     plane->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "plane50.obj");
     AddMeshToList(plane);
 
-    objects::GenPoints(points, &extPoints, &intPoints);
-
-    Mesh* racetrack = objects::CreateRaceTrack("racetrack", extPoints, intPoints);
+    Mesh* racetrack = objects::CreateRaceTrack("racetrack", 
+                                            extPoints, intPoints, &vertices, &indices);
     AddMeshToList(racetrack);
 
     Mesh* car = objects::CreateCube("car", glm::vec3(-carLength / 2, 0, 0), carLength);
@@ -99,7 +134,9 @@ void Tema2::Update(float deltaTimeSeconds)
     glm::ivec2 resolution = window->GetResolution();
     miniViewportArea = ViewportArea(50, 50, resolution.x / 5.f, resolution.y / 5.f);
 
-    camera->RotateThirdPerson_OX(-M_PI / 6);
+    /* Se deseneaza scena */
+
+    camera->RotateThirdPerson_OX(-M_PI / 6); // pozitionare a camerei cu scop estetic
 
     glViewport(0, 0, resolution.x, resolution.y);
     projectionMatrix = glm::perspective(RADIANS(60), window->props.aspectRatio, 0.01f, 200.0f);
@@ -108,8 +145,18 @@ void Tema2::Update(float deltaTimeSeconds)
     camera->RotateThirdPerson_OX(M_PI / 6);
 
 
+    /* Se deseneaza scena in minimap */
+
+    /* Deoarece se apeleaza RenderScene (deci si RenderOtherCars) de 2 ori, se 
+    decrementeaza indexul pozitiei curente a fiecarei masini, pentru a avea acelasi
+    index si in minimap */
+    for (int i = 0; i < nrOtherCars; i++) {
+        nextPoints[i]--;
+    }
+
+    /* Se seteaza camera astfel incat scena sa fie vazuta de sus */
     camera->RotateThirdPerson_OX(-M_PI / 2);
-    camera->up = glm::vec3(1, 0, 0);
+    camera->up = glm::vec3(1, 0, 0); // noua directie "sus" va fi axa ox
 
     glViewport(miniViewportArea.x, miniViewportArea.y, miniViewportArea.width, miniViewportArea.height);
     projectionMatrix = glm::ortho(-10.0f, 10.0f, -5.0f, 5.0f, 0.01f, 200.0f);
@@ -124,49 +171,66 @@ void Tema2::FrameEnd()
 }
 
 
-void Tema2::RenderScene()
+void Tema2::RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color)
 {
-    {
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
-        RenderMesh(meshes["plane"], shaders["LabShader"], modelMatrix, glm::vec3(0.1f, 0.45f, 0.1f));
-    }
+    if (!mesh || !shader || !shader->program)
+        return;
 
-    {
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
-        RenderMesh(meshes["racetrack"], shaders["LabShader"], modelMatrix, glm::vec3(0.15f, 0.15f, 0.15f));
-    }
+    shader->Use();
+    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
+    glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
 
-    {
-        RenderTrees();
-    }
+    /* Se trimite matricea pozitiei masinii catre shader */
+    int car_location = glGetUniformLocation(shader->program, "CarModel");
+    glUniformMatrix4fv(car_location, 1, GL_FALSE, glm::value_ptr(carMatrix));
 
-    {
-        glm::vec3 carPosition = camera->GetTargetPosition();
+    /* Se trimite culoarea obiectului catre shader */
+    int color_location = glGetUniformLocation(shader->program, "Color");
+    glUniform3fv(color_location, 1, glm::value_ptr(color));
 
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Translate(carPosition.x, carPosition.y, carPosition.z);
-        modelMatrix *= rotateMatrix;
-        modelMatrix *= transform3D::Scale(carScale.x, carScale.y, carScale.z);
-        RenderMesh(meshes["car"], shaders["LabShader"], modelMatrix, glm::vec3(0.3f, 0.1f, 0.7f));
-
-        carMatrix = modelMatrix;
-    }
-
-    //DrawCoordinateSystem(camera->GetViewMatrix(), projectionMatrix);
+    mesh->Render();
 }
 
 
-void Tema2::RenderTrees()
+void Tema2::RenderScene()
 {
-    for (glm::vec3 spawnPoint : extPoints) {
-        RenderTree(spawnPoint * trackScale);
-    }
+    RenderPlane();
+    RenderRacetrack();
+    RenderCar();
+    RenderTrees();
+    RenderOtherCars();
+}
 
-    for (glm::vec3 spawnPoint : intPoints) {
-        RenderTree(spawnPoint * trackScale);
-    }
+
+void Tema2::RenderPlane()
+{
+    modelMatrix = glm::mat4(1);
+    modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
+    RenderMesh(meshes["plane"], shaders["LabShader"], modelMatrix, glm::vec3(0.1f, 0.45f, 0.1f));
+}
+
+
+void Tema2::RenderRacetrack()
+{
+    modelMatrix = glm::mat4(1);
+    modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
+    RenderMesh(meshes["racetrack"], shaders["LabShader"], modelMatrix, glm::vec3(0.15f, 0.15f, 0.15f));
+}
+
+
+void Tema2::RenderCar()
+{
+    glm::vec3 carPosition = camera->GetTargetPosition();
+    carPosition.y = 0;
+
+    modelMatrix = glm::mat4(1);
+    modelMatrix *= transform3D::Translate(carPosition.x, carPosition.y, carPosition.z);
+    modelMatrix *= rotateMatrix;
+    modelMatrix *= transform3D::Scale(carScale.x, carScale.y, carScale.z);
+    RenderMesh(meshes["car"], shaders["LabShader"], modelMatrix, glm::vec3(0.3f, 0.1f, 0.7f));
+
+    carMatrix = modelMatrix;
 }
 
 
@@ -189,39 +253,144 @@ void Tema2::RenderTree(glm::vec3 spawnPoint)
 }
 
 
-void Tema2::RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color)
+void Tema2::RenderTrees()
 {
-    if (!mesh || !shader || !shader->program)
-        return;
+    for (glm::vec3 spawnPoint : extPoints) {
+        RenderTree(spawnPoint * trackScale);
+    }
 
-    // Render an object using the specified shader and the specified position
-    shader->Use();
-    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
-    glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-    glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    for (glm::vec3 spawnPoint : intPoints) {
+        RenderTree(spawnPoint * trackScale);
+    }
+}
 
-    int car_location = glGetUniformLocation(shader->program, "CarModel");
-    glUniformMatrix4fv(car_location, 1, GL_FALSE, glm::value_ptr(carMatrix));
 
-    int color_location = glGetUniformLocation(shader->program, "Color");
-    glUniform3fv(color_location, 1, glm::value_ptr(color));
+void Tema2::RenderOtherCars()
+{
+    for (int i = 0; i < nrOtherCars; i++) {
 
-    mesh->Render();
+        int nextPoint = nextPoints[i];
+
+        glm::vec3 carPosition = carPoints[i][nextPoint] * trackScale;
+        carPosition.y = 0;
+
+        int currPoint = nextPoint;
+        nextPoints[i]++;
+        if (nextPoints[i] == carPoints[i].size()) {
+            nextPoints[i] = 0;
+        }
+        nextPoint = nextPoints[i];
+
+        float x1 = carPoints[i][currPoint].x * trackScale.x;
+        float z1 = carPoints[i][currPoint].z * trackScale.z;
+        float x2 = carPoints[i][nextPoint].x * trackScale.x;
+        float z2 = carPoints[i][nextPoint].z * trackScale.z;
+
+        /* Se calculeaza unghiul intre axa oz si segmentul curent parcurs de masina,
+        pentru a o roti corespunzator pe directia pe care aceasta se deplaseaza */
+        float angle = atan((x2 - x1) / (z2 - z1));
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(carPosition.x, carPosition.y, carPosition.z);
+        modelMatrix *= transform3D::RotateOY(angle);
+        modelMatrix *= transform3D::Scale(carScale.x, carScale.y, carScale.z);
+        RenderMesh(meshes["car"], shaders["LabShader"], modelMatrix, colors[i]);
+    }
+}
+
+
+bool Tema2::IsInsideRacetrack(glm::vec3 p)
+{
+    for (int i = 0; i < indices.size(); i += 3) {
+        glm::vec3 a = vertices[indices[i]].position * trackScale;
+        glm::vec3 b = vertices[indices[i + 1]].position * trackScale;
+        glm::vec3 c = vertices[indices[i + 2]].position * trackScale;
+
+        if (IsInsideTriangle(p, a, b, c)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+bool Tema2::IsInsideTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c)
+{
+    return (SameSide(p, a, b, c) && SameSide(p, b, a, c) && SameSide(p, c, a, b));
+}
+
+
+bool Tema2::SameSide(glm::vec3 p1, glm::vec3 p2, glm::vec3 a, glm::vec3 b)
+{
+    return (glm::dot(glm::cross(b - a, p1 - a), glm::cross(b - a, p2 - a)) >= 0);
+}
+
+
+bool Tema2::CheckCollision()
+{
+    /* Pozitie masina jucator */
+    glm::vec3 car1Position = camera->GetTargetPosition();
+    car1Position.y = 0;
+
+    for (int i = 0; i < nrOtherCars; i++) {
+
+        /* Pozitie masina inamica */
+        glm::vec3 car2Position = carPoints[i][nextPoints[i]] * trackScale;
+        car2Position.y = 0;
+
+        float nr = sqrt(
+                pow((car1Position.x - car2Position.x), 2) + 
+                pow((car1Position.y - car2Position.y), 2) + 
+                pow((car1Position.z - car2Position.z), 2));
+
+        if (nr <= 2 * ((carLength * carScale.z) / 2)) { // coliziune
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
+    if (CheckCollision()) { // daca exista coliziune orice input este ignorat
+        return;
+    }
+
     float cameraSpeed = 3.5f;
+
+    if (window->KeyHold(GLFW_KEY_SPACE)) { // accelerare
+        cameraSpeed *= 2;
+    }
+
+    // copie camera (pentru a afla urmatoarea miscare fara a o executa)
+    implemented::LabCamera* c = new implemented::LabCamera();
+    c->position = camera->position;
+    c->forward = camera->forward;
+    c->up = camera->up;
+    c->right = camera->right;
+
 
     if (window->KeyHold(GLFW_KEY_W)) {
         // Miscare in fata a camerei
-        camera->MoveForward(cameraSpeed * deltaTime);
+        c->MoveForward(cameraSpeed * deltaTime);
+
+        /* Daca nu iese in afara pistei, executa miscarea */
+        if (IsInsideRacetrack(c->GetTargetPosition())) {
+            camera->MoveForward(cameraSpeed * deltaTime);
+        }
     }
 
     if (window->KeyHold(GLFW_KEY_S)) {
         // Miscare in spate a camerei
-        camera->MoveForward(-cameraSpeed * deltaTime);
+        c->MoveForward(-cameraSpeed * deltaTime);
+
+        /* Daca nu iese in afara pistei, executa miscarea */
+        if (IsInsideRacetrack(c->GetTargetPosition())) {
+            camera->MoveForward(-cameraSpeed * deltaTime);
+        }
     }
 
     if (window->KeyHold(GLFW_KEY_A)) {
@@ -234,7 +403,7 @@ void Tema2::OnInputUpdate(float deltaTime, int mods)
     if (window->KeyHold(GLFW_KEY_D)) {
         // Rotatie spre dreapta a camerei
         camera->RotateThirdPerson_OY(-cameraSpeed * deltaTime * 0.25f);
-        // Rotatie spre dreapta a camerei
+        // Rotatie spre dreapta a masinii
         rotateMatrix *= transform3D::RotateOY(-cameraSpeed * deltaTime * 0.25f);
     }
 }
