@@ -17,7 +17,6 @@ namespace transform3D
                         0, 0, 0,          1
                     )
 	    );
-
     }
 
     // Matricea de scalare
@@ -32,7 +31,6 @@ namespace transform3D
                              0,      0,      0, 1
                     )
 	    );
-
     }
 
     // Matricea de rotatie relativa la axa OZ
@@ -47,7 +45,6 @@ namespace transform3D
                                    0,             0, 0, 1
                     )
 	    );
-
     }
 
     // Matricea de rotatie relativa la axa OY
@@ -62,7 +59,6 @@ namespace transform3D
                                     0, 0,            0, 1
                     )
 	    );
-
     }
 
     // Matricea de rotatie relativa la axa OX
@@ -77,6 +73,5 @@ namespace transform3D
                         0,            0,             0, 1
                     )
 	    );
-
     }
 }

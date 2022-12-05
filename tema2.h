@@ -51,20 +51,38 @@ namespace m1
             void OnWindowResize(int width, int height) override;
 
             void RenderScene();
+            void RenderPlane();
+            void RenderRacetrack();
+            void RenderCar();
             void RenderTree(glm::vec3 spawnPoint);
             void RenderTrees();
+            void RenderOtherCars();
+            bool IsInsideRacetrack(glm::vec3 p);
+            bool IsInsideTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c);
+            bool SameSide(glm::vec3 p1, glm::vec3 p2, glm::vec3 a, glm::vec3 b);
+            bool CheckCollision();
 
         protected:
 
-            vector<glm::vec3> points, extPoints, intPoints;
-        
             implemented::LabCamera *camera;
+            ViewportArea miniViewportArea;
+
+            glm::mat4 projectionMatrix, modelMatrix, rotateMatrix, carMatrix;
 
             float carLength, trunkLength, crownLength;
             glm::vec3 carScale, trunkScale, crownScale, trackScale;
 
-            glm::mat4 projectionMatrix, rotateMatrix, modelMatrix, carMatrix;
+            vector<VertexFormat> vertices;
+            vector<unsigned int> indices;
 
-            ViewportArea miniViewportArea;
+            vector<glm::vec3> points, extPoints, intPoints;
+
+            int nrOtherCars;
+            vector<vector<glm::vec3>> carPoints;
+            vector<int> nextPoints;
+            vector<int> speeds;
+            vector<glm::vec3> distances, colors;
+
+            bool collision;
     };
 }
