@@ -90,8 +90,6 @@ void Tema2::Init()
         carPoints.push_back(objects::GenMorePoints(carPoints2, speeds[i + 1]));
     }
 
-    collision = false; // initial nu exista coliziune
-
     /* Se genereaza multimea punctelor exterioare si interioare ce definesc pista */
     objects::GenPoints(points, &extPoints, &intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
 
@@ -133,8 +131,6 @@ void Tema2::FrameStart()
 
 void Tema2::Update(float deltaTimeSeconds)
 {
-    collision = CheckCollision(); // verificare coliziune masina cu masina inamica
-
     glm::ivec2 resolution = window->GetResolution();
     miniViewportArea = ViewportArea(50, 50, resolution.x / 5.f, resolution.y / 5.f);
 
@@ -172,6 +168,28 @@ void Tema2::Update(float deltaTimeSeconds)
 
 void Tema2::FrameEnd()
 {
+}
+
+
+void Tema2::RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color)
+{
+    if (!mesh || !shader || !shader->program)
+        return;
+
+    shader->Use();
+    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
+    glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+
+    /* Se trimite matricea pozitiei masinii catre shader */
+    int car_location = glGetUniformLocation(shader->program, "CarModel");
+    glUniformMatrix4fv(car_location, 1, GL_FALSE, glm::value_ptr(carMatrix));
+
+    /* Se trimite culoarea obiectului catre shader */
+    int color_location = glGetUniformLocation(shader->program, "Color");
+    glUniform3fv(color_location, 1, glm::value_ptr(color));
+
+    mesh->Render();
 }
 
 
@@ -335,31 +353,9 @@ bool Tema2::CheckCollision()
 }
 
 
-void Tema2::RenderMesh(Mesh *mesh, Shader *shader, const glm::mat4 &modelMatrix, const glm::vec3 &color)
-{
-    if (!mesh || !shader || !shader->program)
-        return;
-
-    shader->Use();
-    glUniformMatrix4fv(shader->loc_view_matrix, 1, GL_FALSE, glm::value_ptr(camera->GetViewMatrix()));
-    glUniformMatrix4fv(shader->loc_projection_matrix, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-    glUniformMatrix4fv(shader->loc_model_matrix, 1, GL_FALSE, glm::value_ptr(modelMatrix));
-
-    /* Se trimite matricea pozitiei masinii catre shader */
-    int car_location = glGetUniformLocation(shader->program, "CarModel");
-    glUniformMatrix4fv(car_location, 1, GL_FALSE, glm::value_ptr(carMatrix));
-
-    /* Se trimite culoarea obiectului catre shader */
-    int color_location = glGetUniformLocation(shader->program, "Color");
-    glUniform3fv(color_location, 1, glm::value_ptr(color));
-
-    mesh->Render();
-}
-
-
 void Tema2::OnInputUpdate(float deltaTime, int mods)
 {
-    if (collision) { // daca exista coliziune orice input este ignorat
+    if (CheckCollision()) { // daca exista coliziune orice input este ignorat
         return;
     }
 
