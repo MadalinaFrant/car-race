@@ -75,7 +75,7 @@ namespace m1
             vector<VertexFormat> vertices;
             vector<unsigned int> indices;
 
-            vector<glm::vec3> points, extPoints, intPoints;
+            vector<glm::vec3> points, extPoints, intPoints, extPointsAux, intPointsAux;
 
             int nrOtherCars;
             vector<vector<glm::vec3>> carPoints;
