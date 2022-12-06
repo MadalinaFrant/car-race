@@ -93,6 +93,8 @@ void Tema2::Init()
     /* Se genereaza multimea punctelor exterioare si interioare ce definesc pista */
     objects::GenPoints(points, extPoints, intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
 
+    /* Se genereaza inca cate o multime de puncte exterioare si interioare pentru 
+    liniile de pe marginea pistei */
     objects::GenPoints(points, extPointsAux, intPointsAux, glm::vec3(0.475f), glm::vec3(0.275f));
 
     /* Se definesc obiectele utilizate */
@@ -101,17 +103,14 @@ void Tema2::Init()
     plane->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "plane50.obj");
     AddMeshToList(plane);
 
-    Mesh* racetrack = objects::CreateRaceTrack("racetrack", false, 
+    Mesh* racetrack = objects::CreateRaceTrack("racetrack", true, 
                                             extPoints, intPoints, vertices, indices);
     AddMeshToList(racetrack);
 
-    vector<VertexFormat> v1, v2;
-    vector<unsigned int> i1, i2;
-
-    Mesh* extLine = objects::CreateRaceTrack("extLine", true, extPoints, extPointsAux, v1, i1);
+    Mesh* extLine = objects::CreateRaceTrack("extLine", false, extPoints, extPointsAux, vExt, iExt);
     AddMeshToList(extLine);
 
-    Mesh* intLine = objects::CreateRaceTrack("intLine", true, intPoints, intPointsAux, v2, i2);
+    Mesh* intLine = objects::CreateRaceTrack("intLine", false, intPoints, intPointsAux, vInt, iInt);
     AddMeshToList(intLine);
 
     Mesh* car = objects::CreateCube("car", glm::vec3(-carLength / 2, 0, 0), carLength);
@@ -123,8 +122,8 @@ void Tema2::Init()
     Mesh* crown = objects::CreatePyramid("crown", glm::vec3(0, 0, 0), crownLength);
     AddMeshToList(crown);
 
-    Mesh* checkpoint = objects::CreateCube("checkpoint", glm::vec3(0, 0, 0), 0.15f);
-    AddMeshToList(checkpoint);
+    Mesh* bollard = objects::CreateCube("bollard", glm::vec3(0, 0, 0), 0.15f);
+    AddMeshToList(bollard);
 
     {
         Shader *shader = new Shader("LabShader");
@@ -214,36 +213,8 @@ void Tema2::RenderScene()
     RenderCar();
     RenderTrees();
     RenderOtherCars();
-
-    vector<glm::vec3> extPts = objects::GenMorePoints(extPoints, 2);
-
-    for (int i = 1; i < extPts.size(); i += 6) {
-        glm::vec3 point = extPts[i] * trackScale;
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Translate(point.x, point.y, point.z);
-        modelMatrix *= transform3D::Scale(0.5f, 2, 0.5f);
-        RenderMesh(meshes["checkpoint"], shaders["LabShader"], modelMatrix, glm::vec3(1, 1, 1));
-
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Translate(point.x, point.y + 0.15f * 2, point.z);
-        modelMatrix *= transform3D::Scale(0.5f, 0.5f, 0.5f);
-        RenderMesh(meshes["checkpoint"], shaders["LabShader"], modelMatrix, glm::vec3(1, 0, 0));
-    }
-
-    vector<glm::vec3> intPts = objects::GenMorePoints(intPoints, 2);
-
-    for (int i = 1; i < intPts.size(); i += 6) {
-        glm::vec3 point = intPts[i] * trackScale;
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Translate(point.x, point.y, point.z);
-        modelMatrix *= transform3D::Scale(0.5f, 2, 0.5f);
-        RenderMesh(meshes["checkpoint"], shaders["LabShader"], modelMatrix, glm::vec3(1, 1, 1));
-
-        modelMatrix = glm::mat4(1);
-        modelMatrix *= transform3D::Translate(point.x, point.y + 0.15f * 2, point.z);
-        modelMatrix *= transform3D::Scale(0.5f, 0.5f, 0.5f);
-        RenderMesh(meshes["checkpoint"], shaders["LabShader"], modelMatrix, glm::vec3(1, 0, 0));
-    }
+    RenderBollards(objects::GenMorePoints(extPoints, 2));
+    RenderBollards(objects::GenMorePoints(intPoints, 2));
 }
 
 
@@ -257,10 +228,12 @@ void Tema2::RenderPlane()
 
 void Tema2::RenderRacetrack()
 {
+    // pista
     modelMatrix = glm::mat4(1);
     modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
     RenderMesh(meshes["racetrack"], shaders["LabShader"], modelMatrix, glm::vec3(0.15f, 0.15f, 0.15f));
 
+    // liniile de pe marginea pistei
     modelMatrix = glm::mat4(1);
     modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y + 0.05f, trackScale.z);
     RenderMesh(meshes["extLine"], shaders["LabShader"], modelMatrix, glm::vec3(0.75f, 0.5f, 0));
@@ -310,6 +283,24 @@ void Tema2::RenderTrees()
 
     for (glm::vec3 spawnPoint : intPoints) {
         RenderTree(spawnPoint * trackScale);
+    }
+}
+
+
+void Tema2::RenderBollards(vector<glm::vec3> points)
+{
+    for (int i = 1; i < points.size(); i += 6) {
+        glm::vec3 point = points[i] * trackScale;
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(point.x, point.y, point.z);
+        modelMatrix *= transform3D::Scale(0.5f, 2, 0.5f);
+        RenderMesh(meshes["bollard"], shaders["LabShader"], modelMatrix, glm::vec3(1, 1, 1));
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(point.x, point.y + 0.15f * 2, point.z);
+        modelMatrix *= transform3D::Scale(0.5f, 0.5f, 0.5f);
+        RenderMesh(meshes["bollard"], shaders["LabShader"], modelMatrix, glm::vec3(1, 0, 0));
     }
 }
 

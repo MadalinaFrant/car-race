@@ -48,7 +48,7 @@ vector<glm::vec3> objects::GenMorePoints(vector<glm::vec3> points, float K)
 
 
 
-Mesh* objects::CreateRaceTrack(const std::string &name, bool discontinuos,
+Mesh* objects::CreateRaceTrack(const std::string &name, bool continuous,
                             vector<glm::vec3> extPoints, vector<glm::vec3> intPoints,
                             vector<VertexFormat> &vertices, vector<unsigned int> &indices)
 {
@@ -78,7 +78,9 @@ Mesh* objects::CreateRaceTrack(const std::string &name, bool discontinuos,
         indices.push_back(j + 1);
         indices.push_back(i + 1);
 
-        if (discontinuos) {
+        /* Pentru a se crea efect de discontinuitate (folosit la liniile de pe 
+        marginea pistei), o data la 10 puncte se va sari peste 5 puncte */
+        if (!continuous) {
             if (i % 10 == 0) {
                 i += 5;
             }

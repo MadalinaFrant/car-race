@@ -22,7 +22,7 @@ namespace objects
     vector<glm::vec3> GenMorePoints(vector<glm::vec3> points, float K);
 
     /* Creeaza pista */
-    Mesh* CreateRaceTrack(const std::string &name, bool discontinuous, 
+    Mesh* CreateRaceTrack(const std::string &name, bool continuous, 
                         vector<glm::vec3> extPoints, vector<glm::vec3> intPoints,
                         vector<VertexFormat> &vertices, vector<unsigned int> &indices);
 
