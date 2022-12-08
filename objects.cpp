@@ -5,7 +5,7 @@
 
 
 void objects::GenPoints(vector<glm::vec3> points, 
-                    vector<glm::vec3> *extPoints, vector<glm::vec3> *intPoints,
+                    vector<glm::vec3> &extPoints, vector<glm::vec3> &intPoints,
                     glm::vec3 extDist, glm::vec3 intDist)
 {
     glm::vec3 up = glm::vec3(0, 1, 0);
@@ -14,17 +14,17 @@ void objects::GenPoints(vector<glm::vec3> points,
         glm::vec3 d = points[i + 1] - points[i];
         glm::vec3 p = glm::cross(d, up);
         glm::vec3 extPoint = points[i] - extDist * p;
-        extPoints->push_back(extPoint);
+        extPoints.push_back(extPoint);
         glm::vec3 intPoint = points[i] + intDist * p;
-        intPoints->push_back(intPoint);
+        intPoints.push_back(intPoint);
     }
 
     glm::vec3 d = points[0] - points[points.size() - 1];
     glm::vec3 p = glm::cross(d, up);
     glm::vec3 extPoint = points[points.size() - 1] - extDist * p;
-    extPoints->push_back(extPoint);
+    extPoints.push_back(extPoint);
     glm::vec3 intPoint = points[points.size() - 1] + intDist * p;
-    intPoints->push_back(intPoint);
+    intPoints.push_back(intPoint);
 }
 
 
@@ -48,48 +48,56 @@ vector<glm::vec3> objects::GenMorePoints(vector<glm::vec3> points, float K)
 
 
 
-Mesh* objects::CreateRaceTrack(const std::string &name,
+Mesh* objects::CreateRacetrack(const std::string &name, bool continuous,
                             vector<glm::vec3> extPoints, vector<glm::vec3> intPoints,
-                            vector<VertexFormat> *vertices, vector<unsigned int> *indices)
+                            vector<VertexFormat> &vertices, vector<unsigned int> &indices)
 {
     float K = 100;
 
     /* Se adauga mai intai toti vertecsii corespunzatori punctelor exterioare, 
     apoi ai punctelor interioare */
     for (glm::vec3 v : GenMorePoints(extPoints, K)) {
-        vertices->push_back(v);
+        vertices.push_back(v);
     }
     for (glm::vec3 v : GenMorePoints(intPoints, K)) {
-        vertices->push_back(v);
+        vertices.push_back(v);
     }
 
     /* La indexul nr (jumatate din numarul tuturor vertecsilor) se va afla primul
     index corespunzator vertecsilor punctelor interioare */
-    int nr = vertices->size() / 2;
+    int nr = vertices.size() / 2;
 
     for (int i = 0; i < nr - 1; i++) { // i = vertex punct exterior
         int j = i + nr; // j = vertex punct interior corespunzator aceluiasi punct
 
-        indices->push_back(i);
-        indices->push_back(j);
-        indices->push_back(j + 1);
+        indices.push_back(i);
+        indices.push_back(j);
+        indices.push_back(j + 1);
 
-        indices->push_back(i);
-        indices->push_back(j + 1);
-        indices->push_back(i + 1);
+        indices.push_back(i);
+        indices.push_back(j + 1);
+        indices.push_back(i + 1);
+
+        /* Pentru a se crea efect de discontinuitate (folosit la liniile de pe 
+        marginea pistei), o data la 10 puncte se va sari peste 5 puncte */
+        if (!continuous) {
+            if (i % 10 == 0) {
+                i += 5;
+            }
+        }
     }
 
-    indices->push_back(nr - 1);
-    indices->push_back((nr - 1) + nr);
-    indices->push_back(nr);
+    indices.push_back(nr - 1);
+    indices.push_back((nr - 1) + nr);
+    indices.push_back(nr);
 
-    indices->push_back(nr - 1);
-    indices->push_back(nr);
-    indices->push_back(0);
+    indices.push_back(nr - 1);
+    indices.push_back(nr);
+    indices.push_back(0);
 
     Mesh* racetrack = new Mesh(name);
 
-    racetrack->InitFromData(*vertices, *indices);
+    racetrack->InitFromData(vertices, indices);
     return racetrack;
 }
 

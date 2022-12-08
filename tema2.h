@@ -47,6 +47,7 @@ namespace m1
             void RenderCar();
             void RenderTree(glm::vec3 spawnPoint);
             void RenderTrees();
+            void RenderBollards(vector<glm::vec3> points);
             void RenderOtherCars();
             bool IsInsideRacetrack(glm::vec3 p);
             bool IsInsideTriangle(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c);
@@ -72,10 +73,10 @@ namespace m1
             float carLength, trunkLength, crownLength;
             glm::vec3 carScale, trunkScale, crownScale, trackScale;
 
-            vector<VertexFormat> vertices;
-            vector<unsigned int> indices;
+            vector<VertexFormat> vertices, vExt, vInt;
+            vector<unsigned int> indices, iExt, iInt;
 
-            vector<glm::vec3> points, extPoints, intPoints;
+            vector<glm::vec3> points, extPoints, intPoints, extPointsAux, intPointsAux;
 
             int nrOtherCars;
             vector<vector<glm::vec3>> carPoints;

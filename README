@@ -1,0 +1,102 @@
+Tema 2 EGC - Frant Madalina 334CB
+
+
+Pentru rezolvarea acestei teme am folosit drept suport laboratoarele 4, 5, 6. 
+
+
+In cadrul fisierului "transform3D.h" au fost implementate matricile de 
+translatie, scalare si rotatie relativa la axele OX, OY, OZ.
+
+
+In cadrul fisierului "lab_camera.h" a fost implementata camera prezentata in 
+laboratorul 5. 
+
+
+In cadrul fisierului "objects.h" au fost definite, iar in "objects.cpp" 
+implementate functiile:
+
+- GenPoints: primeste o multime de puncte si genereaza o multime de puncte 
+paralele exterioare si o multime de puncte paralele interioare, la 
+distantele respective primite drept parametru, conform formulei. 
+
+- GenMorePoints: primeste o multime de puncte si un numar K si adauga 
+intre fiecare 2 puncte din multime inca K puncte, distribuite uniform. 
+
+- CreateRacetrack: primeste o multime de puncte exterioare si o multime de 
+puncte interioare si genereaza pista definind triunghiurile corespunzator.
+Pentru o densitate mai mare de triunghiuri, genereaza mai multe puncte pentru 
+fiecare multime de puncte (exterioare si interioare). De asemenea, functia 
+mai primeste si parametrul continuous, care determina daca pista va fi continua
+sau va avea discontinuitati. Pentru a crea discontinuitati, dupa un anumit 
+numar de puncte se va sari peste cateva, neadaugand triunghiurile. 
+
+- CreateCube: creeaza un cub cu coltul de stanga jos dat, de lungime data.
+
+- CreatePyramid: creeaza o piramida cu coltul de stanga jos dat, de lungime data.
+
+
+Fisierul header "tema2.h" defineste clasa Tema2 cu toate functiile si 
+variabilele necesare.
+
+In cadrul fisierului "tema2.cpp":
+
+Initial, se definesc punctele ce vor reprezenta pista, se seteaza camera, se 
+definesc dimensiunile si scalarile obiectelor utilizate. Pentru obstacolele 
+dinamice, se definesc vitezele de miscare, culorile si distantele fata de 
+pista, cu ajutorul carora se genereaza traseele acestora, prin functiile  
+GenPoints si GenMorePoints. Se vor genera multimile de puncte exterioare si 
+interioare intre care se va desena pista, si inca cate o multime de puncte 
+exterioare si interioare pentru a defini liniile de pe marginile pistei. 
+Se definesc toate obiectele utilizate si shader-ul implementat. 
+
+In cadrul functiei FrameStart se seteaza culoarea fundalului, iar in cadrul 
+functiei Update se vor defini, pe rand, cele 2 viewport-uri (cel principal 
+si minimap-ul), desenand intreaga scena in fiecare, apeland functia RenderScene.
+
+Functia RenderMesh trimite catre shader uniformele definite, unde se va 
+calcula pozitia vertex-ului, conform formulei, astfel incat sa se creeze 
+efectul de curbura si se va seta culoarea acestuia. 
+
+Functia RenderScene deseneaza toate obiectele in scena, apeland functiile 
+corespunzatoare:
+
+- RenderPlane: deseneaza planul, pe planul XOZ.
+
+- RenderRacetrack: deseneaza pista si liniile discontinue de la marginile acesteia.
+
+- RenderCar: deseneaza masina, obtinand pozitia acesteia din pozitia camerei si 
+aplicand si rotatia obtinuta in urma input-ului.
+
+- RenderTrees: in fiecare punct exterior si interior paralel calculat se 
+deseneaza un copac apeland functia RenderTree, care deseneaza un copac in 
+punctul dat drept parametru.
+
+- RenderOtherCars: pentru fiecare masina obtine urmatoarea pozitie si 
+calculeaza unghiul dintre directia pe care aceasta merge si axa OZ pentru 
+a o putea roti corespunzator.
+
+- RenderBollards: deseneaza cate un bolard in punctele determinate. Va fi apelata 
+de 2 ori, o data pentru punctele exterioare si o data pentru cele interioare. 
+Punctele date drept parametru vor fi obtinute prin functia GenMorePoints, cu 
+argumentul K 2, pentru a defini puncte diferite de cele in care au fost desenati 
+copacii. 
+
+Functia IsInsideRacetrack verifica daca punctul dat se afla pe pista, verificand 
+daca acesta este continut in cel putin unul din triunghiurile ce definesc pista. 
+
+Functia IsInsideTriangle verifica daca punctul dat se afla in interiorul 
+triunghiului determinat de punctele date, cu ajutorul functiei SameSide, care 
+verifica daca 2 puncte date se afla pe aceeasi parte a unei linii.  
+
+Functia CheckCollision verifica daca exista coliziune intre masina jucatorului 
+si oricare dintre masinile obstacol. 
+
+In cadrul functiei OnInputUpdate se verifica mai intai daca exista vreo coliziune 
+cu unul din obstacolele dinamice, caz in care orice input va fi ignorat. In 
+caz contrar, se vor aplica transformarile necesare in functie de input. Pentru 
+input-ul W/S, se va realiza o miscare spre fata/spate a camerei (deci implicit si
+a masinei). Aceasta se va realiza numai daca in urma acesteia masina nu va iesi 
+in afara pistei. In acest scop, se realizeaza o copie a camerei pentru a obtine 
+urmatoarea pozitie in urma miscarii fara a o executa. Pentru input-ul A/D se va 
+realiza o rotatie atat a camerei, cat si a masinii. In plus, se va crea un efect 
+de accelerare daca se va tine apasata tasta SPACE, dubland viteza. 

@@ -84,14 +84,18 @@ void Tema2::Init()
 
         vector<glm::vec3> carPoints1, carPoints2;
 
-        objects::GenPoints(points, &carPoints1, &carPoints2, distances[i], distances[i + 1]);
+        objects::GenPoints(points, carPoints1, carPoints2, distances[i], distances[i + 1]);
 
         carPoints.push_back(objects::GenMorePoints(carPoints1, speeds[i]));
         carPoints.push_back(objects::GenMorePoints(carPoints2, speeds[i + 1]));
     }
 
     /* Se genereaza multimea punctelor exterioare si interioare ce definesc pista */
-    objects::GenPoints(points, &extPoints, &intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
+    objects::GenPoints(points, extPoints, intPoints, glm::vec3(0.5f), glm::vec3(0.3f));
+
+    /* Se genereaza inca cate o multime de puncte exterioare si interioare pentru 
+    liniile de pe marginea pistei */
+    objects::GenPoints(points, extPointsAux, intPointsAux, glm::vec3(0.475f), glm::vec3(0.275f));
 
     /* Se definesc obiectele utilizate */
 
@@ -99,9 +103,15 @@ void Tema2::Init()
     plane->LoadMesh(PATH_JOIN(window->props.selfDir, RESOURCE_PATH::MODELS, "primitives"), "plane50.obj");
     AddMeshToList(plane);
 
-    Mesh* racetrack = objects::CreateRaceTrack("racetrack", 
-                                            extPoints, intPoints, &vertices, &indices);
+    Mesh* racetrack = objects::CreateRacetrack("racetrack", true, 
+                                            extPoints, intPoints, vertices, indices);
     AddMeshToList(racetrack);
+
+    Mesh* extLine = objects::CreateRacetrack("extLine", false, extPoints, extPointsAux, vExt, iExt);
+    AddMeshToList(extLine);
+
+    Mesh* intLine = objects::CreateRacetrack("intLine", false, intPoints, intPointsAux, vInt, iInt);
+    AddMeshToList(intLine);
 
     Mesh* car = objects::CreateCube("car", glm::vec3(-carLength / 2, 0, 0), carLength);
     AddMeshToList(car);
@@ -111,6 +121,9 @@ void Tema2::Init()
 
     Mesh* crown = objects::CreatePyramid("crown", glm::vec3(0, 0, 0), crownLength);
     AddMeshToList(crown);
+
+    Mesh* bollard = objects::CreateCube("bollard", glm::vec3(0, 0, 0), 0.15f);
+    AddMeshToList(bollard);
 
     {
         Shader *shader = new Shader("LabShader");
@@ -156,10 +169,10 @@ void Tema2::Update(float deltaTimeSeconds)
 
     /* Se seteaza camera astfel incat scena sa fie vazuta de sus */
     camera->RotateThirdPerson_OX(-M_PI / 2);
-    camera->up = glm::vec3(1, 0, 0); // noua directie "sus" va fi axa ox
+    camera->up = glm::vec3(1, 0, 0); // noua directie "sus" va fi axa OX
 
     glViewport(miniViewportArea.x, miniViewportArea.y, miniViewportArea.width, miniViewportArea.height);
-    projectionMatrix = glm::ortho(-10.0f, 10.0f, -5.0f, 5.0f, 0.01f, 200.0f);
+    projectionMatrix = glm::ortho(-15.0f, 15.0f, -10.0f, 10.0f, 0.01f, 200.0f);
     RenderScene();
 
     camera->RotateThirdPerson_OX(M_PI / 2);
@@ -200,6 +213,8 @@ void Tema2::RenderScene()
     RenderCar();
     RenderTrees();
     RenderOtherCars();
+    RenderBollards(objects::GenMorePoints(extPoints, 2));
+    RenderBollards(objects::GenMorePoints(intPoints, 2));
 }
 
 
@@ -213,9 +228,16 @@ void Tema2::RenderPlane()
 
 void Tema2::RenderRacetrack()
 {
+    // pista
     modelMatrix = glm::mat4(1);
     modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y, trackScale.z);
     RenderMesh(meshes["racetrack"], shaders["LabShader"], modelMatrix, glm::vec3(0.15f, 0.15f, 0.15f));
+
+    // liniile de pe marginea pistei
+    modelMatrix = glm::mat4(1);
+    modelMatrix *= transform3D::Scale(trackScale.x, trackScale.y + 0.05f, trackScale.z);
+    RenderMesh(meshes["extLine"], shaders["LabShader"], modelMatrix, glm::vec3(0.75f, 0.5f, 0));
+    RenderMesh(meshes["intLine"], shaders["LabShader"], modelMatrix, glm::vec3(0.75f, 0.5f, 0));
 }
 
 
@@ -265,6 +287,24 @@ void Tema2::RenderTrees()
 }
 
 
+void Tema2::RenderBollards(vector<glm::vec3> points)
+{
+    for (int i = 1; i < points.size(); i += 6) {
+        glm::vec3 point = points[i] * trackScale;
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(point.x, point.y, point.z);
+        modelMatrix *= transform3D::Scale(0.5f, 2, 0.5f);
+        RenderMesh(meshes["bollard"], shaders["LabShader"], modelMatrix, glm::vec3(1, 1, 1));
+
+        modelMatrix = glm::mat4(1);
+        modelMatrix *= transform3D::Translate(point.x, point.y + 0.15f * 2, point.z);
+        modelMatrix *= transform3D::Scale(0.5f, 0.5f, 0.5f);
+        RenderMesh(meshes["bollard"], shaders["LabShader"], modelMatrix, glm::vec3(1, 0, 0));
+    }
+}
+
+
 void Tema2::RenderOtherCars()
 {
     for (int i = 0; i < nrOtherCars; i++) {
@@ -286,7 +326,7 @@ void Tema2::RenderOtherCars()
         float x2 = carPoints[i][nextPoint].x * trackScale.x;
         float z2 = carPoints[i][nextPoint].z * trackScale.z;
 
-        /* Se calculeaza unghiul intre axa oz si segmentul curent parcurs de masina,
+        /* Se calculeaza unghiul intre axa OZ si segmentul curent parcurs de masina,
         pentru a o roti corespunzator pe directia pe care aceasta se deplaseaza */
         float angle = atan((x2 - x1) / (z2 - z1));
 
